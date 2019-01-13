@@ -8,9 +8,8 @@ get the data necessary to display the animations.
 package goaseprite
 
 import (
-	"bufio"
+	"io/ioutil"
 	"log"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -269,26 +268,13 @@ func (asf *File) FinishedAnimation() bool {
 	return asf.finishedAnimation
 }
 
-func readFile(filePath string) string {
-
-	file, err := os.Open(filePath)
-
+func readFile(filePath string) []byte {
+	out, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		panic(err)
 	}
 
-	scanner := bufio.NewScanner(file)
-
-	out := ""
-
-	for scanner.Scan() {
-		out += scanner.Text()
-	}
-
-	file.Close()
-
 	return out
-
 }
 
 type byFrameNumber []string
@@ -314,14 +300,19 @@ func (b byFrameNumber) Less(xi, yi int) bool {
 // Load parses and returns an File for a supplied JSON exported from Aseprite. This is your starting point.
 // goaseprite is set up to read JSONs for sprite sheets exported with the Hash type.
 func Load(aseJSONFilePath string) File {
-
 	file := readFile(aseJSONFilePath)
+	return LoadBytes(file)
+}
+
+// LoadBytes parses and returns an File from JSON exported from Aseprite.
+// An alternative to Load(filePath) when no file-system is available (jsgo.io, for example)
+func LoadBytes(fileBytes []byte) File {
 
 	ase := File{}
 	ase.Animations = make([]Animation, 0)
 	ase.PlaySpeed = 1
 
-	if path, err := filepath.Abs(gjson.Get(file, "meta.image").String()); err != nil {
+	if path, err := filepath.Abs(gjson.GetBytes(fileBytes, "meta.image").String()); err != nil {
 		log.Fatalln(err)
 	} else {
 		ase.ImagePath = path
@@ -329,7 +320,7 @@ func Load(aseJSONFilePath string) File {
 
 	frameNames := []string{}
 
-	for key := range gjson.Get(file, "frames").Map() {
+	for key := range gjson.GetBytes(fileBytes, "frames").Map() {
 		frameNames = append(frameNames, key)
 	}
 
@@ -339,7 +330,7 @@ func Load(aseJSONFilePath string) File {
 
 		frameName := key
 		frameName = strings.Replace(frameName, ".", `\.`, -1)
-		frameData := gjson.Get(file, "frames."+frameName)
+		frameData := gjson.GetBytes(fileBytes, "frames."+frameName)
 
 		frame := Frame{}
 		frame.X = int32(frameData.Get("frame.x").Num)
@@ -355,7 +346,7 @@ func Load(aseJSONFilePath string) File {
 
 	}
 
-	for _, anim := range gjson.Get(file, "meta.frameTags").Array() {
+	for _, anim := range gjson.GetBytes(fileBytes, "meta.frameTags").Array() {
 
 		ase.Animations = append(ase.Animations, Animation{
 			Name:      anim.Get("name").Str,
@@ -365,7 +356,7 @@ func Load(aseJSONFilePath string) File {
 
 	}
 
-	for _, sliceData := range gjson.Get(file, "meta.slices").Array() {
+	for _, sliceData := range gjson.GetBytes(fileBytes, "meta.slices").Array() {
 		ase.Slices = append(ase.Slices, Slice{
 			Name:          sliceData.Get("name").Str,
 			Data:          sliceData.Get("data").Str,
