@@ -4,7 +4,6 @@ Package goaseprite is an Aseprite JSON loader written in Golang.
 The package is basically written around using goaseprite.Load() to load in your exported file's JSON data, and then using that to play and
 get the data necessary to display the animations.
 */
-
 package goaseprite
 
 import (
@@ -301,22 +300,24 @@ func (b byFrameNumber) Less(xi, yi int) bool {
 // goaseprite is set up to read JSONs for sprite sheets exported with the Hash type.
 func Load(aseJSONFilePath string) File {
 	file := readFile(aseJSONFilePath)
-	return LoadBytes(file)
+
+	ase := LoadBytes(file)
+	if path, err := filepath.Abs(gjson.GetBytes(file, "meta.image").String()); err != nil {
+		log.Fatalln(err)
+	} else {
+		ase.ImagePath = path
+	}
+	return ase
 }
 
 // LoadBytes parses and returns an File from JSON exported from Aseprite.
 // An alternative to Load(filePath) when no file-system is available (jsgo.io, for example)
+// ase.ImagePath will be empty
 func LoadBytes(fileBytes []byte) File {
 
 	ase := File{}
 	ase.Animations = make([]Animation, 0)
 	ase.PlaySpeed = 1
-
-	if path, err := filepath.Abs(gjson.GetBytes(fileBytes, "meta.image").String()); err != nil {
-		log.Fatalln(err)
-	} else {
-		ase.ImagePath = path
-	}
 
 	frameNames := []string{}
 
