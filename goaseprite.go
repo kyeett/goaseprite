@@ -302,7 +302,9 @@ func Load(aseJSONFilePath string) File {
 	file := readFile(aseJSONFilePath)
 
 	ase := LoadBytes(file)
-	if path, err := filepath.Abs(gjson.GetBytes(file, "meta.image").String()); err != nil {
+
+	// Make path absolute
+	if path, err := filepath.Abs(ase.ImagePath); err != nil {
 		log.Fatalln(err)
 	} else {
 		ase.ImagePath = path
@@ -369,5 +371,6 @@ func LoadBytes(fileBytes []byte) File {
 		})
 	}
 
+	ase.ImagePath = gjson.GetBytes(fileBytes, "meta.image").String()
 	return ase
 }
